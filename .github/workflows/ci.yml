@@ -1,0 +1,47 @@
+name: CampusConnect CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campusconnect-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-test:
+    name: Validate and test (Node.js ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24]
+
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # CampusConnect currently uses only Node.js built-ins; no npm install is needed.
+      - name: Check JavaScript syntax
+        run: |
+          node --check campus_connect_templates/script.js
+          node --check campus_connect_templates/validate-files.js
+          node --check campus_connect_templates/tests/script.test.js
+
+      - name: Validate CampusConnect template structure
+        run: npm run validate
+
+      - name: Run CampusConnect unit tests
+        run: npm test
